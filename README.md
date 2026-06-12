@@ -103,10 +103,25 @@ direction and local x radially outward.
 | `scripts/analyze_yield.py` | scan table + figures of merit |
 | `scripts/make_channel_input.py` | enclosure hits → channel beam file with a geometric capture-acceptance filter |
 | `scripts/analyze_channel.py` | μ⁻ at the channel end per injected proton |
+| `scripts/make_plots.py` | all figures in `plots/` (layout, optics, energy recovery, yields, scan, channel) |
 
 All detectors write plain-text BLTrackFiles
 (`x y z Px Py Pz t PDGid EventID TrackID ParentID Weight`; mm, MeV/c, ns),
 so no ROOT is needed for analysis.
+
+## Plots
+
+`python3 scripts/make_plots.py` regenerates `plots/*.png` from the latest
+run output:
+
+| figure | content |
+|---|---|
+| `plots/ring_layout.png` | top view: midplane field of the 12 cells, closed orbit, a 38-turn scattered proton, target/RF/walls, simulated π⁻ exit points and the capture direction |
+| `plots/lattice_optics.png` | field-map vs design field law, DFD cell profile, closed-orbit scallop, betatron oscillations and tunes |
+| `plots/energy_recovery.png` | KE vs turn with the RF holding the mean, survival curve vs λ_inel, scattering-driven beam-size growth, straggling distributions |
+| `plots/pion_yield.png` | spectra, exit azimuth, species budget on the walls, exit map near the target |
+| `plots/energy_scan.png` | π± yields vs beam energy with the ring and thick-dump points overlaid, figures of merit |
+| `plots/decay_channel.png` | captured π⁻ helix and decay kink in the solenoid, π⁻/μ⁻ populations along the channel |
 
 ## Results from this configuration
 
@@ -131,11 +146,11 @@ beam energy it is still rising but flattening above ~2–3 GeV. **A 1 GeV
 beam is below the natural optimum — which is the gap the energy-recovery
 ring closes** by making every proton interact at full energy.
 
-**Ring** (5 mm target, RF on, 1 GeV, 600 protons): mean 52 turns per
+**Ring** (5 mm target, RF on, 1 GeV, 1200 protons): mean 54 turns per
 proton (median 36, tail to the 300-turn tracking limit); π⁻ + in-flight μ⁻
-reaching the chamber: **0.027 ± 0.007 per injected proton** (≈ 8× the
+reaching the chamber: **0.027 ± 0.005 per injected proton** (≈ 8× the
 single-pass thin-target yield, ≈ 45 % of the ideal "one full-energy
-interaction per proton" limit of 0.061), mean momentum ≈ 200 MeV/c, all
+interaction per proton" limit of 0.061), mean momentum ≈ 220 MeV/c, all
 within ±15° of the target azimuth.
 
 For comparison, a 45 cm graphite beam-dump target at 1 GeV gives a similar
@@ -147,12 +162,14 @@ optics possible, and its π⁻ never have to climb out of a thick block
 
 **Capture + decay channel** (5 T, 0.5 m bore, 30 m): the channel mouth
 sits at the target straight, pointed outward along the mean direction of
-the radially-outward-going π⁻ (~⅓ of the total; inward-going ones would
-have to cross the ring and are written off). With the demo statistics
-this delivers ~2×10⁻³ μ⁻ per injected proton at the channel end (μ⁻ at
-~280 MeV/c). Capture, not production, is the design bottleneck — as in
-every π → μ front end — and this interface (`make_channel_input.py
---window/--bore`, channel `BSOL/RCH/LCH`) is where to iterate.
+the radially-outward-going π⁻ (13 of 32; inward-going ones would have to
+cross the ring and are written off; 6 project into the bore). In the demo
+statistics 1 of the 6 captured π⁻ survives to decay in the channel,
+i.e. ~10⁻³ μ⁻ per injected proton — the rest hit the bore wall within the
+first turn (transverse momentum too large). Capture, not production, is
+the design bottleneck — as in every π → μ front end — and this interface
+(`make_channel_input.py --window/--bore`, channel `BSOL/RCH/LCH`) is
+where to iterate.
 
 ## Knobs to play with
 

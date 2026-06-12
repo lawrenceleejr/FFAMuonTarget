@@ -22,6 +22,7 @@ param -unset BSOL=5.0
 param -unset LCH=30000.0
 param -unset RCH=500.0
 param -unset INFILE=out/pions_for_channel.txt
+param -unset TRACE=0
 
 physics QGSP_BERT
 param worldMaterial=Vacuum
@@ -51,3 +52,7 @@ enddo
 virtualdetector VDmuEnd radius=$RCH length=1 material=Vacuum format=ascii \
     kill=1 coordinates=global file=out/VDmuEnd.txt
 place VDmuEnd z=$LCH coordinates=global
+
+if $TRACE>0
+  trace nTrace=$TRACE oneNTuple=1 format=ascii filename=out/chan_trace.txt coordinates=global
+endif
