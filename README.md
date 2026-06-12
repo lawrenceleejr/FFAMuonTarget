@@ -238,6 +238,40 @@ the acceptance waist and zeroes the ring-exit timestamps (the channel has
 no RF, and stale times would trip its maxTime cut); `make_plots.py
 --preset 3gev` regenerates the figures for the scaled ring.
 
+### Ring vs conventional single-pass target (the honest comparison)
+
+Same 3 GeV protons, same physics list, and the **identical** capture
+solenoid + 40 m channel + D-T stopping stage applied to a conventional
+single-pass target (`scripts/make_channel_input_dump.py`,
+`scripts/compare_ring_dump.py`, figure `plots/ring_vs_dump.png`):
+
+| per injected 3 GeV proton | FFA ring (10 mm Be) | 60 cm C dump | 15 cm W dump |
+|---|---|---|---|
+| pi- + mu- escaping | 0.270 ± 0.018 | 0.286 ± 0.006 | 0.097 |
+| captured into channel | 0.113 (42 %) | 0.208 (73 %) | - |
+| mu- at channel end | 0.044 | 0.126 | - |
+| **mu- stopped in D-T** | **0.026 ± 0.006** | **0.045 ± 0.002** | - |
+
+**On raw pi- production per proton the ring only ties the graphite dump**
+(at 3 GeV the dump's internal cascade also makes nearly every proton -
+and its secondaries - interact, and the degradation penalty is mild that
+far above threshold; tungsten loses to self-absorption).  **End-to-end
+the dump wins ~1.7x** because its pi- emerge forward-collimated along
+the beam axis, straight into the channel (73 % capture), while the ring's
+pi- exit sideways through the ring fields, fanned over meters of chamber
+wall (42 % capture).
+
+Caveats that favor each side: the dump's on-axis channel must also
+swallow the punch-through primary beam (a real design needs a bend or
+Mu2e-style backward capture, costing acceptance), while the ring's
+channel is beam-free by construction.  The ring spreads the beam power
+over a thin radiation-cooled foil instead of one melting block - at
+megawatt beam power that, not per-proton yield, is its real argument -
+and its 10 mm source spot remains better matched to etendue-limited
+(surface-muon-style) optics.  But for the plain FOM "mu- per injected
+proton into a big capture channel", **the conventional single-pass target
+is the better source in this study.**
+
 ## Knobs to play with
 
 * `TGT` (mm): target thickness per pass. Thicker = fewer turns and more RF
