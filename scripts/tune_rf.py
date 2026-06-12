@@ -21,8 +21,11 @@ import numpy as np
 MP = 938.272
 
 
+EXTRA = []
+
+
 def run(args_list, timeout=1800):
-    cmd = ["./scripts/g4bl-docker.sh", "ffa_ring.g4bl"] + args_list
+    cmd = ["./scripts/g4bl-docker.sh", "ffa_ring.g4bl"] + args_list + EXTRA
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     if "simulation complete" not in r.stdout + r.stderr:
         print(r.stdout[-3000:], r.stderr[-1500:])
@@ -65,10 +68,22 @@ def main():
     ap.add_argument("--tgt", type=float, default=5.0)
     ap.add_argument("--phis", type=float, default=30.0)
     ap.add_argument("--gtest", type=float, default=10.0)
+    ap.add_argument("--nturns", type=float, default=21.0,
+                    help="how many revolution periods the test runs cover")
+    ap.add_argument("--fitturns", type=int, default=8,
+                    help="turns used in the RF slope fit (keep small when "
+                         "the synchrotron period is short)")
+    ap.add_argument("--trev", type=float, default=212.35)
+    ap.add_argument("--extra", nargs="*", default=[],
+                    help="extra deck params (MAP=..., SCALE=..., KE0=..., HARM=...)")
     args = ap.parse_args()
+    global EXTRA
+    EXTRA = list(args.extra)
+    tmax_long = args.nturns * args.trev
+    tmax_short = 12.0 * args.trev
 
     print(f"=== 1) target {args.tgt} mm, RF off: energy loss per turn ===")
-    run([f"TGT={args.tgt}", "GRAD=0", "NEV=40", "TMAX=4500", "SEED=7"])
+    run([f"TGT={args.tgt}", "GRAD=0", "NEV=40", f"TMAX={tmax_long}", "SEED=7"])
     dE_t = -de_per_turn(20)
     print(f"    <dE_target> = {dE_t:.4f} MeV/turn")
 
@@ -78,8 +93,8 @@ def main():
     # phase drift (synchrotron motion), which would bend a longer fit
     for phid in (0.0, 90.0, 180.0, 270.0):
         run(["TGT=0", f"GRAD={args.gtest}", f"PHID={phid}",
-             "NEV=1", "TMAX=2500", "SEED=7"])
-        g = de_per_turn(8)
+             "NEV=1", f"TMAX={tmax_short}", "SEED=7"])
+        g = de_per_turn(args.fitturns)
         gains[phid] = g
         print(f"    PHID={phid:5.1f} deg  ->  dE = {g:+.4f} MeV/turn")
 

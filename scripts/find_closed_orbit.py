@@ -20,12 +20,13 @@ import sys
 import numpy as np
 
 G4BL = ["./scripts/g4bl-docker.sh", "ring_test.g4bl"]
-TREV_GUESS = 216.0          # ns
+TREV_GUESS = 216.0          # ns (overridden by --trev)
+EXTRA = []                  # extra deck params, e.g. MAP=..., SCALE=...
 
 
 def run_g4bl(X0, Y0=0.0, turns=3.0, P0=1696.04):
     tmax = turns * TREV_GUESS
-    cmd = G4BL + [f"X0={X0}", f"Y0={Y0}", f"TMAX={tmax}", f"P0={P0}"]
+    cmd = G4BL + [f"X0={X0}", f"Y0={Y0}", f"TMAX={tmax}", f"P0={P0}"] + EXTRA
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
     if "simulation complete" not in r.stdout + r.stderr:
         print(r.stdout[-3000:], r.stderr[-2000:])
@@ -74,7 +75,14 @@ def main():
     ap.add_argument("--coarse", nargs=3, type=float, default=[8700, 9050, 50])
     ap.add_argument("--p0", type=float, default=1696.04,
                     help="proton momentum [MeV/c] (1696.04 = 1 GeV kinetic)")
+    ap.add_argument("--trev", type=float, default=216.0,
+                    help="revolution period guess [ns] (sets run lengths)")
+    ap.add_argument("--extra", nargs="*", default=[],
+                    help="extra deck params, e.g. MAP=out/x.txt SCALE=2.255")
     args = ap.parse_args()
+    global TREV_GUESS, EXTRA
+    TREV_GUESS = args.trev
+    EXTRA = list(args.extra)
 
     print("=== coarse scan ===")
     best = (1e9, None)

@@ -16,6 +16,8 @@ param -unset X0=9000.0
 param -unset Y0=0.0
 param -unset P0=1696.04
 param -unset TMAX=1100
+param -unset MAP=out/ffa_cell_map.txt
+param -unset SCALE=1.0
 
 physics QGSP_BERT
 param worldMaterial=Vacuum
@@ -26,10 +28,12 @@ param deltaChord=1.0 deltaOneStep=0.01 deltaIntersection=0.1
 param epsMin=1e-7 epsMax=1e-5
 param fieldVoxels=400,400,400
 
-expandworld 10500,500,10500 -10500,-500,-10500
+param WA=10500*$SCALE
+param WB=800*$SCALE
+expandworld $WA,$WB,$WA -$WA,-$WB,-$WA
 
 # ---- the FFA ring: 12 rotated copies of the one-cell field map ----
-fieldmap cellmap file=out/ffa_cell_map.txt
+fieldmap cellmap file=$MAP
 do i 0 11
   param ang=$i*30
   place cellmap rename=cell$i x=0 y=0 z=0 rotation=Y$ang coordinates=global

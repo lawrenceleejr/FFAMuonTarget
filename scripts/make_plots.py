@@ -38,6 +38,8 @@ MPI = 139.570
 MMU = 105.658
 
 # ---- design constants (must match make_ffa_fieldmap.py defaults + k=3.6) ----
+# defaults = the 1 GeV ring; the "3gev" preset rescales them (the lattice is
+# scale-invariant: same fields/angles at R0 x 2.255)
 N, R0, K = 12, 9000.0, 3.6
 PC = 1696.04
 BENDF, THF, THD, GAPFD = 48.0, 14.0, 3.5, 1.0
@@ -45,6 +47,21 @@ FRINGE = 100.0
 RCO, RSTR, TREV = 8920.95, 8628.70, 212.3519
 TARGET_AZ = 15.0
 CAV_AZ = 195.0
+KE0 = 1000.0
+LAMTURNS = 78          # target interaction length in turns (lambda/TGT)
+TLABEL = "1 GeV, 5 mm graphite"
+PREFIX = "plots/"
+TRACE_CO = "out/trace_co.txt"
+RING_TRACE = "out/ring_trace.txt"
+
+PRESETS = {
+    "1gev": {},
+    "3gev": dict(R0=20296.6, PC=3824.87, RCO=20119.41, RSTR=19459.11,
+                 TREV=431.4673, FRINGE=225.5, KE0=3000.0, LAMTURNS=42,
+                 TLABEL="3 GeV, 10 mm beryllium", PREFIX="plots/3gev_",
+                 TRACE_CO="out/trace_co_3gev.txt",
+                 RING_TRACE="out/ring_trace_3gev.txt"),
+}
 
 
 def design_P():
@@ -91,14 +108,15 @@ def ke_of(rows, mass=MP):
 # ====================================================================
 def fig_ring_layout(dirs):
     P = design_P()
+    SCL = R0 / 9000.0
     n = 901
-    xs = np.linspace(-10300, 10300, n)
+    xs = np.linspace(-10300 * SCL, 10300 * SCL, n)
     X, Z = np.meshgrid(xs, xs, indexing="ij")
     R = np.hypot(X, Z)
     PHI = np.degrees(np.arctan2(Z, X))
     TH = np.radians((PHI + 15.0) % 30.0 - 15.0)        # fold to one cell
     By = b0_midplane(R, TH, P)
-    By[(R < 7950) | (R > 9850)] = np.nan
+    By[(R < 7950 * SCL) | (R > 9850 * SCL)] = np.nan
 
     fig, ax = plt.subplots(figsize=(11.5, 11))
     norm = TwoSlopeNorm(vcenter=0.0, vmin=-2.0, vmax=3.0)
@@ -109,14 +127,14 @@ def fig_ring_layout(dirs):
 
     # chamber / score walls
     th = np.linspace(0, 2 * np.pi, 400)
-    for r, lab in ((9.65, "outer score/kill wall (9.65 m)"),
-                   (8.25, "inner wall (8.25 m)")):
+    for r in (9.65 * SCL, 8.25 * SCL):
         ax.plot(r * np.cos(th), r * np.sin(th), color="0.35", lw=1.2, ls="--")
-    ax.annotate("score/kill walls", xy=(0.0, -9.7), ha="center", color="0.35")
+    ax.annotate("score/kill walls", xy=(0.0, -9.7 * SCL), ha="center",
+                color="0.35")
 
     # a recirculating proton (with target scattering), drawn faint
-    if os.path.exists("out/ring_trace.txt"):
-        tr = read_trace("out/ring_trace.txt")
+    if os.path.exists(RING_TRACE):
+        tr = read_trace(RING_TRACE)
         prim = tr[tr[:, 9] == 1]
         if len(prim):
             best = max(np.unique(prim[:, 8]),
@@ -128,20 +146,20 @@ def fig_ring_layout(dirs):
                     label=f"one proton, {nt:.0f} turns with target scattering")
 
     # closed orbit
-    if os.path.exists("out/trace_co.txt"):
-        tr = read_trace("out/trace_co.txt")
+    if os.path.exists(TRACE_CO):
+        tr = read_trace(TRACE_CO)
         ax.plot(tr[:, 0] / 1000, tr[:, 2] / 1000, "k-", lw=1.4,
-                label="closed orbit (1 GeV)")
+                label="closed orbit")
 
     # target
     a = math.radians(TARGET_AZ)
     ur = np.array([math.cos(a), math.sin(a)])
     c = RSTR / 1000 * ur
-    ax.plot([c[0] - 0.15 * ur[0], c[0] + 0.15 * ur[0]],
-            [c[1] - 0.15 * ur[1], c[1] + 0.15 * ur[1]],
+    ax.plot([c[0] - 0.15 * SCL * ur[0], c[0] + 0.15 * SCL * ur[0]],
+            [c[1] - 0.15 * SCL * ur[1], c[1] + 0.15 * SCL * ur[1]],
             color="k", lw=5, solid_capstyle="butt")
-    ax.annotate("graphite target\n(5 mm/turn)", xy=(c[0], c[1]),
-                xytext=(c[0] - 3.6, c[1] + 0.5), fontsize=11,
+    ax.annotate("internal target", xy=(c[0], c[1]),
+                xytext=(c[0] - 3.6 * SCL, c[1] + 0.5 * SCL), fontsize=11,
                 arrowprops=dict(arrowstyle="->", lw=1.2))
 
     # RF cavity
@@ -153,14 +171,16 @@ def fig_ring_layout(dirs):
                for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
     corners = np.array(corners + [corners[0]])
     ax.plot(corners[:, 0], corners[:, 1], color="purple", lw=2)
-    ax.annotate("405 MHz cavity\n(+2.0 MeV/turn)", xy=(c[0], c[1]),
-                xytext=(c[0] + 1.1, c[1] - 1.7), fontsize=11, color="purple",
+    ax.annotate("RF cavity", xy=(c[0], c[1]),
+                xytext=(c[0] + 1.1 * SCL, c[1] - 1.7 * SCL), fontsize=11,
+                color="purple",
                 arrowprops=dict(arrowstyle="->", color="purple", lw=1.2))
 
     # injection arrow at azimuth 0
-    ax.add_patch(FancyArrow(RCO / 1000, -1.45, 0, 1.0, width=0.05,
-                            head_width=0.22, head_length=0.3, color="green"))
-    ax.annotate("1 GeV p\ninjection", xy=(6.3, -2.5),
+    ax.add_patch(FancyArrow(RCO / 1000, -1.45 * SCL, 0, 1.0 * SCL,
+                            width=0.05 * SCL, head_width=0.22 * SCL,
+                            head_length=0.3 * SCL, color="green"))
+    ax.annotate("p injection", xy=(6.3 * SCL, -2.5 * SCL),
                 fontsize=11, color="green", ha="center")
 
     # pi-/mu- exits from production data
@@ -183,37 +203,38 @@ def fig_ring_layout(dirs):
             ez[1] = 0
             ez /= np.linalg.norm(ez)
             o = np.mean(pim[sel, 0:3], axis=0) / 1000
-            ax.add_patch(FancyArrow(o[0], o[2], 1.6 * ez[0], 1.6 * ez[2],
-                                    width=0.07, head_width=0.3,
-                                    head_length=0.4, color="orange",
+            ax.add_patch(FancyArrow(o[0], o[2], 1.6 * SCL * ez[0],
+                                    1.6 * SCL * ez[2], width=0.07 * SCL,
+                                    head_width=0.3 * SCL,
+                                    head_length=0.4 * SCL, color="orange",
                                     alpha=0.9))
-            ax.annotate("to capture solenoid\n+ 30 m decay channel",
-                        xy=(o[0] + 1.4 * ez[0], o[2] + 1.4 * ez[2]),
-                        xytext=(2.6, 6.3), fontsize=11, color="darkorange",
-                        ha="center",
+            ax.annotate("to capture solenoid,\ndecay channel + DT target",
+                        xy=(o[0] + 1.4 * SCL * ez[0], o[2] + 1.4 * SCL * ez[2]),
+                        xytext=(0.8 * SCL, 5.9 * SCL), fontsize=11,
+                        color="darkorange", ha="center",
                         arrowprops=dict(arrowstyle="-", color="darkorange",
                                         lw=0.8, alpha=0.6))
 
     # cell boundaries (straights)
     for i in range(12):
         a = math.radians(15 + 30 * i)
-        ax.plot([8.1 * math.cos(a), 9.8 * math.cos(a)],
-                [8.1 * math.sin(a), 9.8 * math.sin(a)],
+        ax.plot([8.1 * SCL * math.cos(a), 9.8 * SCL * math.cos(a)],
+                [8.1 * SCL * math.sin(a), 9.8 * SCL * math.sin(a)],
                 color="0.6", lw=0.5, ls=":")
 
     ax.set_xlabel("x [m]")
     ax.set_ylabel("z [m]")
-    ax.set_title("FFA internal-target ring: 12-cell scaling FFA (k=3.6), "
-                 "1 GeV protons\nERIT-style energy-recovery pion source",
+    ax.set_title(f"FFA internal-target ring (k=3.6, R0={R0/1000:.1f} m), "
+                 f"{TLABEL}\nERIT-style energy-recovery pion source",
                  fontsize=13)
     ax.set_aspect("equal")
-    ax.set_xlim(-10.4, 10.4)
-    ax.set_ylim(-10.4, 10.4)
+    ax.set_xlim(-10.4 * SCL, 10.4 * SCL)
+    ax.set_ylim(-10.4 * SCL, 10.4 * SCL)
     ax.legend(loc="upper left", fontsize=11, framealpha=0.95)
     fig.tight_layout()
-    fig.savefig("plots/ring_layout.png", dpi=150)
+    fig.savefig(PREFIX + "ring_layout.png", dpi=150)
     plt.close(fig)
-    print("wrote plots/ring_layout.png")
+    print("wrote " + PREFIX + "ring_layout.png")
 
 
 # ====================================================================
@@ -350,10 +371,10 @@ def fig_energy_recovery(dirs):
     ax.fill_between(ts, mean - std, mean + std, alpha=0.3,
                     label=r"$\pm 1\sigma$ (straggling)")
     ax.plot(ts, mean, lw=1.5, label="mean kinetic energy")
-    ax.axhline(1000, color="0.4", ls=":", lw=1)
+    ax.axhline(KE0, color="0.4", ls=":", lw=1)
     ax.set_xlabel("turn")
     ax.set_ylabel("primary proton KE [MeV]")
-    ax.set_title("energy recovery: cavity restores the 2.0 MeV/turn "
+    ax.set_title("energy recovery: the cavity restores the per-turn "
                  "target loss")
     ax2 = ax.twinx()
     ax2.plot(ts, nsur, color="0.45", lw=1, ls="--")
@@ -373,8 +394,8 @@ def fig_energy_recovery(dirs):
     ax.semilogy(ts, np.exp(-ts / lam) * np.exp(np.polyfit(ts[m],
                 np.log(surv[m]), 1)[1]), "r--", lw=1,
                 label=f"exp fit: 1/e = {lam:.0f} turns")
-    ax.semilogy(ts, np.exp(-ts / 78.0), color="0.5", ls=":",
-                label=r"nuclear $\lambda_{inel}$ alone (78 turns)")
+    ax.semilogy(ts, np.exp(-ts / LAMTURNS), color="0.5", ls=":",
+                label=rf"nuclear $\lambda_{{inel}}$ alone ({LAMTURNS} turns)")
     ax.set_xlabel("turn")
     ax.set_ylabel("fraction still circulating")
     ax.set_title(f"recirculation survival ({nev} protons)")
@@ -393,7 +414,7 @@ def fig_energy_recovery(dirs):
     ax = axs[1, 1]
     for tn, col in ((1, "C0"), (20, "C1"), (50, "C2"), (100, "C3")):
         if tn in ke_by_turn and len(ke_by_turn[tn]) > 3:
-            ax.hist(ke_by_turn[tn], bins=np.linspace(960, 1040, 41),
+            ax.hist(ke_by_turn[tn], bins=np.linspace(KE0 - 40, KE0 + 40, 41),
                     histtype="step", lw=1.5, color=col, density=True,
                     label=f"turn {tn} (n={len(ke_by_turn[tn])})")
     ax.set_xlabel("primary proton KE [MeV]")
@@ -402,11 +423,11 @@ def fig_energy_recovery(dirs):
     ax.legend(fontsize=9)
 
     fig.suptitle("Beam dynamics with the internal target + RF "
-                 f"({nev} protons, 5 mm graphite)", fontsize=13)
+                 f"({nev} protons, {TLABEL})", fontsize=13)
     fig.tight_layout()
-    fig.savefig("plots/energy_recovery.png", dpi=150)
+    fig.savefig(PREFIX + "energy_recovery.png", dpi=150)
     plt.close(fig)
-    print("wrote plots/energy_recovery.png")
+    print("wrote " + PREFIX + "energy_recovery.png")
 
 
 # ====================================================================
@@ -422,7 +443,7 @@ def fig_pion_yield(dirs):
 
     # (a) momentum spectra
     ax = axs[0, 0]
-    bins = np.linspace(0, 800, 21)
+    bins = np.linspace(0, 800 if KE0 < 1500 else 1600, 21)
     for pid, mass, col, lab in ((-211, MPI, "tab:red", r"$\pi^-$"),
                                 (13, MMU, "tab:blue", r"$\mu^-$"),
                                 (211, MPI, "0.6", r"$\pi^+$ (for comparison)")):
@@ -483,11 +504,12 @@ def fig_pion_yield(dirs):
 
     # (d) exit map near target
     ax = axs[1, 1]
+    SCL = R0 / 9000.0
     th = np.linspace(np.radians(-30), np.radians(75), 200)
-    ax.plot(9.65 * np.cos(th), 9.65 * np.sin(th), "0.5", ls="--", lw=1)
-    ax.plot(8.25 * np.cos(th), 8.25 * np.sin(th), "0.5", ls="--", lw=1)
-    if os.path.exists("out/trace_co.txt"):
-        tr = read_trace("out/trace_co.txt")
+    ax.plot(9.65 * SCL * np.cos(th), 9.65 * SCL * np.sin(th), "0.5", ls="--", lw=1)
+    ax.plot(8.25 * SCL * np.cos(th), 8.25 * SCL * np.sin(th), "0.5", ls="--", lw=1)
+    if os.path.exists(TRACE_CO):
+        tr = read_trace(TRACE_CO)
         ax.plot(tr[:, 0] / 1000, tr[:, 2] / 1000, "k-", lw=1)
     for pid, col, ms, lab in ((2112, "tab:green", 3, "n"),
                               (211, "0.6", 4, r"$\pi^+$"),
@@ -502,19 +524,19 @@ def fig_pion_yield(dirs):
     ax.plot(RSTR / 1000 * math.cos(a), RSTR / 1000 * math.sin(a), "k*",
             ms=16, label="target")
     ax.set_aspect("equal")
-    ax.set_xlim(5.4, 10.2)
-    ax.set_ylim(-1.5, 7.2)
+    ax.set_xlim(5.4 * SCL, 10.2 * SCL)
+    ax.set_ylim(-1.5 * SCL, 7.2 * SCL)
     ax.set_xlabel("x [m]")
     ax.set_ylabel("z [m]")
     ax.set_title("exit positions on the chamber (top view)")
     ax.legend(loc="lower left", fontsize=9)
 
     fig.suptitle(f"Pion production in the ring ({nev} injected protons, "
-                 "1 GeV, 5 mm graphite)", fontsize=13)
+                 f"{TLABEL})", fontsize=13)
     fig.tight_layout()
-    fig.savefig("plots/pion_yield.png", dpi=150)
+    fig.savefig(PREFIX + "pion_yield.png", dpi=150)
     plt.close(fig)
-    print("wrote plots/pion_yield.png")
+    print("wrote " + PREFIX + "pion_yield.png")
 
 
 # ====================================================================
@@ -530,15 +552,16 @@ def fig_energy_scan(ring_yield=None):
     ax = axs[0]
     ax.plot(ke, pim, "o-", color="tab:red", label=r"$\pi^-$/proton (20 mm, single pass)")
     ax.plot(ke, pip, "s-", color="0.6", label=r"$\pi^+$/proton")
-    if ring_yield:
-        ax.plot([1.0], [ring_yield], "*", ms=18, color="tab:red", mec="k",
-                label=f"FFA ring @1 GeV: {ring_yield:.3f}/p")
-        ax.plot([1.0], [0.029], "D", ms=9, color="tab:orange", mec="k",
-                label="45 cm dump @1 GeV: 0.029/p")
+    ax.plot([1.0], [0.027], "*", ms=18, color="tab:red", mec="k",
+            label="FFA ring @1 GeV (5 mm C): 0.027/p")
+    ax.plot([3.0], [0.270], "*", ms=20, color="tab:purple", mec="k",
+            label="FFA ring @3 GeV (10 mm Be): 0.270/p")
+    ax.plot([1.0], [0.029], "D", ms=9, color="tab:orange", mec="k",
+            label="45 cm dump @1 GeV: 0.029/p")
     ax.set_xlabel("proton kinetic energy [GeV]")
     ax.set_ylabel("yield per proton")
     ax.set_yscale("log")
-    ax.set_ylim(5e-4, 0.3)
+    ax.set_ylim(5e-4, 0.5)
     ax.set_title("pion yield from graphite vs beam energy")
     ax.legend(fontsize=9, loc="upper left")
 
@@ -629,11 +652,123 @@ def fig_decay_channel():
     print("wrote plots/decay_channel.png")
 
 
+
+
+# ====================================================================
+def fig_stopping(nprotons, dirs=None, lch=40000.0, deg=1.0, cell=3000.0, rch=600.0):
+    """mu- stopping (Bragg) in the DT target downstream of the channel"""
+    if not os.path.exists("out/chan_ends.txt"):
+        print("no out/chan_ends.txt, skipping stopping figure")
+        return
+    ends = read_bltrack("out/chan_ends.txt")
+    p = np.sqrt(np.sum(ends[:, 3:6] ** 2, axis=1))
+    mu = ends[:, 7] == 13
+    stopped = mu & (p < 1.0)
+    z0 = lch + 100.0 + deg
+    in_cell = stopped & (ends[:, 2] >= z0) & (ends[:, 2] <= z0 + cell)
+
+    fig, axs = plt.subplots(2, 2, figsize=(12.5, 9))
+
+    # (a) mu- momentum at channel end vs captured pi- momentum
+    ax = axs[0, 0]
+    pin = []
+    if os.path.exists("out/pions_for_channel.txt"):
+        for line in open("out/pions_for_channel.txt"):
+            if line.startswith("#") or not line.strip():
+                continue
+            q = line.split()
+            pin.append(math.sqrt(float(q[3])**2 + float(q[4])**2 + float(q[5])**2))
+    endvd = read_bltrack("out/VDmuEnd.txt")
+    if len(pin):
+        ax.hist(pin, bins=np.linspace(0, 1600, 33), histtype="step", lw=1.8,
+                color="tab:red", label=rf"$\pi^-$ captured ({len(pin)})")
+    if len(endvd):
+        pmu = np.sqrt(np.sum(endvd[endvd[:, 7] == 13][:, 3:6] ** 2, axis=1))
+        ax.hist(pmu, bins=np.linspace(0, 1600, 33), histtype="step", lw=1.8,
+                color="tab:blue", label=rf"$\mu^-$ at channel end ({len(pmu)})")
+    ax.set_xlabel("momentum [MeV/c]")
+    ax.set_ylabel("count")
+    ax.set_title("decay channel: spectrum entering vs delivered")
+    ax.legend()
+
+    # (b) Bragg stop-depth distribution in the DT target
+    ax = axs[0, 1]
+    depth = (ends[in_cell, 2] - z0) / 10.0
+    ax.hist(depth, bins=24, range=(0, cell / 10.0), color="tab:blue",
+            alpha=0.75)
+    ax.set_xlabel("stop depth in liquid D-T [cm]")
+    ax.set_ylabel(r"$\mu^-$ stops")
+    med = np.median(depth) if len(depth) else 0
+    ax.set_title(f"Bragg stop profile in the D-T target "
+                 f"({int(in_cell.sum())} stops, median {med:.0f} cm)")
+    ax2 = ax.twinx()
+    if len(depth):
+        ds = np.sort(depth)
+        ax2.plot(ds, np.arange(1, len(ds) + 1) / len(ds), "k--", lw=1)
+    ax2.set_ylabel("cumulative fraction")
+
+    # (c) transverse stop positions in the cell
+    ax = axs[1, 0]
+    if np.any(in_cell):
+        ax.plot(ends[in_cell, 0], ends[in_cell, 1], "o", color="tab:blue",
+                ms=6)
+    th = np.linspace(0, 2 * np.pi, 100)
+    ax.plot(rch * np.cos(th), rch * np.sin(th), "k-", lw=2)
+    ax.set_xlabel("x [mm]")
+    ax.set_ylabel("y [mm]")
+    ax.set_aspect("equal")
+    ax.set_title("stop positions (transverse), D-T vessel wall")
+
+    # (d) the chain budget per proton
+    ax = axs[1, 1]
+    npim = 0
+    dirs = dirs or []
+    labels, vals = [], []
+    if nprotons:
+        # escaped pi-+mu- comes from the analysis (passed via file count)
+        try:
+            hits = load_band_hits(dirs)
+            allb = np.vstack([hits[d] for d in
+                              ("VDouter", "VDinner", "VDtop", "VDbot")
+                              if len(hits[d])])
+            npim = int(np.sum(np.isin(allb[:, 7], (-211.0, 13.0))))
+        except Exception:
+            npim = 0
+        nmu_end = int(np.sum(endvd[:, 7] == 13)) if len(endvd) else 0
+        for lab, v in ((r"$\pi^-+\mu^-$ out of ring", npim),
+                       (r"captured into channel", len(pin)),
+                       (r"$\mu^-$ at channel end", nmu_end),
+                       (r"$\mu^-$ STOPPED in D-T", int(in_cell.sum()))):
+            labels.append(lab)
+            vals.append(v / nprotons)
+        ax.bar(range(len(vals)), vals, color=["0.6", "0.6", "0.6", "tab:blue"])
+        ax.set_xticks(range(len(vals)))
+        ax.set_xticklabels(labels, fontsize=9, rotation=12)
+        ax.set_ylabel("per injected proton")
+        for j, v in enumerate(vals):
+            ax.annotate(f"{v:.3f}", xy=(j, v), ha="center", va="bottom")
+        ax.set_title(f"chain budget ({nprotons} protons)")
+
+    fig.suptitle("Muon stopping stage: capture solenoid -> 40 m decay "
+                 "channel -> liquid D-T target (no degrader)", fontsize=13)
+    fig.tight_layout()
+    fig.savefig("plots/stopping_dt.png", dpi=150)
+    plt.close(fig)
+    print("wrote plots/stopping_dt.png")
+
+
 # ====================================================================
 def main():
-    dirs = sys.argv[1:] or sorted(glob.glob("runs/job*/out"))
+    ap = __import__("argparse").ArgumentParser()
+    ap.add_argument("dirs", nargs="*", default=None)
+    ap.add_argument("--preset", choices=list(PRESETS), default="1gev")
+    ap.add_argument("--nprotons", type=int, default=0,
+                    help="protons behind the channel/stopping data")
+    args = ap.parse_args()
+    globals().update(PRESETS[args.preset])
+    dirs = args.dirs or sorted(glob.glob("runs/job*/out"))
     os.makedirs("plots", exist_ok=True)
-    print(f"run dirs: {len(dirs)}")
+    print(f"preset {args.preset}, run dirs: {len(dirs)}")
 
     # ring pi- yield for the scan figure
     ring_yield = None
@@ -647,11 +782,14 @@ def main():
         ring_yield = float(np.sum(np.isin(allb[:, 7], (-211.0, 13.0)))) / nev
 
     fig_ring_layout(dirs)
-    fig_lattice_optics()
+    if args.preset == "1gev":
+        fig_lattice_optics()       # probe/trace files are for the 1 GeV ring
+        fig_decay_channel()
     fig_energy_recovery(dirs)
     fig_pion_yield(dirs)
     fig_energy_scan(ring_yield)
-    fig_decay_channel()
+    if args.nprotons:
+        fig_stopping(args.nprotons, dirs=dirs)
 
 
 if __name__ == "__main__":

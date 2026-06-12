@@ -21,6 +21,7 @@ param -unset THICK=20.0
 param -unset RADIUS=40.0
 param -unset NEV=2000
 param -unset SEED=1
+param -unset MAT=G4_GRAPHITE
 
 physics QGSP_BERT
 param worldMaterial=Vacuum
@@ -37,7 +38,7 @@ trackcuts kill=gamma,e+,e-,nu_e,anti_nu_e,nu_mu,anti_nu_mu,pi0 maxTime=200
 beam gaussian particle=proton nEvents=$NEV beamX=0 beamY=0 beamZ=-200.0 \
      meanMomentum=$P0 sigmaX=2.0 sigmaY=2.0 sigmaXp=0 sigmaYp=0 sigmaP=0
 
-tubs target outerRadius=$RADIUS length=$THICK material=G4_GRAPHITE color=0.3,0.3,0.3
+tubs target outerRadius=$RADIUS length=$THICK material=$MAT color=0.3,0.3,0.3
 place target z=$THICK/2 coordinates=global
 
 # ---- closed detector box, kill=1 -> count each particle once ----

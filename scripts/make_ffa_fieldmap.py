@@ -69,11 +69,15 @@ def main():
     ap.add_argument("--thF", type=float, default=14.0, help="F azimuthal width [deg]")
     ap.add_argument("--thD", type=float, default=3.5, help="azimuthal width of EACH D [deg]")
     ap.add_argument("--gapFD", type=float, default=1.0, help="azimuthal F-D gap [deg]")
-    ap.add_argument("--fringe", type=float, default=100.0, help="tanh fringe length [mm]")
+    ap.add_argument("--fringe", type=float, default=None,
+                    help="tanh fringe length [mm] (default: 100*R0/9000, scale-invariant)")
     ap.add_argument("--scale", type=float, default=1.0, help="overall field scale factor")
     args = ap.parse_args()
 
     N, R0, k = args.N, args.R0, args.k
+    s = R0 / 9000.0                           # scale factor vs the 1 GeV ring
+    if args.fringe is None:
+        args.fringe = 100.0 * s
     cell = 360.0 / N
     bendF = args.bendF
     bendD = bendF - cell                      # total reverse bend of the two Ds
@@ -98,9 +102,9 @@ def main():
           f"({R0_m*math.radians(cell/2.0-thD_hi):.3f} m arc)")
 
     # ---- fine midplane grid (for accurate numerical derivatives) ----
-    fine = 5.0                                 # mm
-    x_f = np.arange(7900.0, 9900.0 + fine / 2, fine)
-    z_f = np.arange(-2700.0, 2700.0 + fine / 2, fine)
+    fine = 5.0 * s                             # mm
+    x_f = np.arange(7900.0 * s, (9900.0 + 1e-6) * s + fine / 2, fine)
+    z_f = np.arange(-2700.0 * s, (2700.0 + 1e-6) * s + fine / 2, fine)
     X, Z = np.meshgrid(x_f, z_f, indexing="ij")
     Rg = np.hypot(X, Z)
     TH = np.arctan2(Z, X)
@@ -113,12 +117,12 @@ def main():
     lapx, lapz = np.gradient(lap, fine, fine, edge_order=2)
 
     # ---- output grid (must be a sub-lattice of the fine grid) ----
-    step = 20.0                                # mm
-    ix = slice(20, len(x_f) - 20, int(step / fine))   # 8000..9800
-    iz = slice(20, len(z_f) - 20, int(step / fine))   # -2600..2600
+    step = 20.0 * s                            # mm
+    ix = slice(20, len(x_f) - 20, int(round(step / fine)))   # 8000..9800 (x s)
+    iz = slice(20, len(z_f) - 20, int(round(step / fine)))   # -2600..2600 (x s)
     xs = x_f[ix]
     zs = z_f[iz]
-    ys = np.arange(-120.0, 120.0 + step / 2, step)
+    ys = np.arange(-120.0 * s, 120.0 * s + step / 2, step)
 
     b0c, b0xc, b0zc = b0[ix, iz], b0x[ix, iz], b0z[ix, iz]
     lapc, lapxc, lapzc = lap[ix, iz], lapx[ix, iz], lapz[ix, iz]
@@ -133,8 +137,9 @@ def main():
         f.write(f"# scaling-FFA cell map: N={N} R0={R0}mm k={k} pc={args.pc}MeV/c\n")
         f.write(f"# BF={BF:.5f}T BD=-{BD:.5f}T thF={thF_az}deg "
                 f"D:{thD_lo}-{thD_hi}deg fringe={args.fringe}mm scale={args.scale}\n")
-        f.write(f"grid X0={xs[0]:.1f} Y0={ys[0]:.1f} Z0={zs[0]:.1f} "
-                f"nX={nX} nY={nY} nZ={nZ} dX={step:.1f} dY={step:.1f} dZ={step:.1f}\n")
+        f.write(f"grid X0={xs[0]:.4f} Y0={ys[0]:.4f} Z0={zs[0]:.4f} "
+                f"nX={nX} nY={nY} nZ={nZ} dX={step:.4f} dY={step:.4f} "
+                f"dZ={step:.4f} tolerance=2.0\n")
         f.write("data\n")
         for iy, y in enumerate(ys):
             By = b0c - 0.5 * y * y * lapc
@@ -142,7 +147,7 @@ def main():
             Bz = y * b0zc - (y ** 3 / 6.0) * lapzc
             for i in range(nX):
                 for j in range(nZ):
-                    f.write(f"{xs[i]:.1f} {y:.1f} {zs[j]:.1f} "
+                    f.write(f"{xs[i]:.4f} {y:.4f} {zs[j]:.4f} "
                             f"{Bx[i, j]:.6g} {By[i, j]:.6g} {Bz[i, j]:.6g}\n")
         print(f"wrote {args.output}")
 

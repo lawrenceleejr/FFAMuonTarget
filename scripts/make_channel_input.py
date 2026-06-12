@@ -84,16 +84,34 @@ def main():
 
     posc = (pos - origin) @ R.T
     momc = mom @ R.T
-    # project each track (straight line) onto the channel entrance plane
-    # z=0; this ignores the ring's fringe fields between the chamber and
-    # the channel mouth (idealization)
     forward = momc[:, 2] > 0
-    dz = np.where(forward, posc[:, 2] / np.where(momc[:, 2] != 0, momc[:, 2], 1), 0.0)
-    posc -= momc * dz[:, None]
+
+    # The pions emerge from the (pointlike) target but are fanned out along
+    # the chamber wall by the ring field, i.e. they diverge from a virtual
+    # source.  The channel mouth is a free design choice: scan the entrance
+    # plane position s along the axis and put it at the plane of maximum
+    # geometric acceptance (the waist of the fan).  Tracks are propagated
+    # as straight lines (the ring fringe field between wall and channel is
+    # neglected - idealization).
+    uz = momc[:, 2].copy()
+    uz[uz == 0] = 1.0
+    best = (-1, 0.0)
+    for s in np.arange(-4000.0, 8000.0 + 1, 250.0):
+        dzs = (posc[:, 2] - s) / uz
+        xs = posc[:, 0] - momc[:, 0] * dzs
+        ys = posc[:, 1] - momc[:, 1] * dzs
+        n = int(np.sum(forward & (np.hypot(xs, ys) < args.bore)))
+        if n > best[0]:
+            best = (n, s)
+    s = best[1]
+    dzs = (posc[:, 2] - s) / uz
+    posc = posc - momc * dzs[:, None]
+    posc[:, 2] = 0.0
     inbore = forward & (np.hypot(posc[:, 0], posc[:, 1]) < args.bore)
+    origin_g = origin + s * (R.T @ np.array([0.0, 0.0, 1.0]))
 
     print(f"channel axis (global) = {ez}")
-    print(f"channel origin (global) = {origin}")
+    print(f"channel mouth (global) = {origin_g}  (waist offset s={s:.0f} mm)")
     print(f"forward-going          : {int(np.sum(forward))}")
     print(f"within bore r<{args.bore:.0f} mm  : {int(np.sum(inbore))} "
           f"(capture-channel geometric acceptance "
@@ -107,8 +125,10 @@ def main():
         for i in np.where(inbore)[0]:
             x, y, _ = posc[i]
             px, py, pz = momc[i]
+            # t is reset to 0: the ring-exit absolute time is irrelevant in
+            # the channel (no RF) and would trip the deck's maxTime cut
             f.write(f"{x:.3f} {y:.3f} 0.0 {px:.3f} {py:.3f} {pz:.3f} "
-                    f"{inwin[i,6]:.3f} {int(inwin[i,7])} {int(inwin[i,8])} "
+                    f"0.0 {int(inwin[i,7])} {int(inwin[i,8])} "
                     f"{int(inwin[i,9])} {int(inwin[i,10])} 1\n")
     print(f"wrote {args.output} ({int(np.sum(inbore))} tracks)")
 

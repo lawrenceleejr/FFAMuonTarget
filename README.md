@@ -171,6 +171,73 @@ the design bottleneck — as in every π → μ front end — and this interface
 (`make_channel_input.py --window/--bore`, channel `BSOL/RCH/LCH`) is
 where to iterate.
 
+---
+
+## Optimized configuration: 3 GeV / beryllium / D-T stopping target
+
+`scripts/run_3gev_chain.sh` runs the whole optimized chain. The goal here
+is **mu- delivered and range-stopped (Bragg peak) in a liquid D-T target**
+downstream of the capture solenoid + decay channel.
+
+Optimization choices, each backed by a scan in this repo:
+
+* **3 GeV protons** (energy scan): pi- per interaction grows 0.061 -> 0.31
+  from 1 -> 3 GeV while the per-GeV cost flattens; beyond ~5 GeV the ring
+  grows fast and the cascade model (BERT) thins.  The *same k = 3.6
+  lattice* is reused, scaled to R0 = 20.30 m (Brho = 12.76 T m) - scaling
+  FFAs are scale-invariant, and the tracked tunes reproduce exactly
+  (Qx = 2.342, Qy = 1.220; closed orbit 20119.4 mm vs 20118.6 predicted).
+* **10 mm beryllium target** (material scan at 3 GeV, C/Be/W at equal
+  lambda-fraction): Be wins every axis that matters for a *recirculating*
+  internal target - escaping pi-(+mu-) per interaction 0.361 (C 0.354,
+  W 0.299), pi-/pi+ 0.83, RF energy per interaction lambda*dE/dx = 124 MeV
+  (C 154, W 220), and scattering lambda/X0 = 1.2 (C 2.0, W 28: tungsten
+  destroys recirculation).
+* **RF**: ~401 MHz (h = 173), V_eff = 3.8 MV at phi_s ~ -30 deg - the ring
+  is *above* transition at 3 GeV (gamma = 4.2 > gamma_t = 2.14) so the
+  stable phase sits on the falling side; calibrated V_eff = 0.217 MeV per
+  MV/m (transit-time prediction 0.223).
+* **Capture**: the pi- fan out along the wall but originate in the 10 mm
+  target spot, so the 0.6 m-bore, 5 T channel mouth is placed at the
+  waist of the fan (scanned in `make_channel_input.py`): 42 % of all
+  escaping pi-/mu- enter the channel.
+* **40 m decay channel** then the **D-T target** (liquid D-T, rho = 0.21,
+  0.6 m radius, 3 m long): a degrader scan showed *no degrader* is
+  optimal - the soft half of the mu- spectrum supplies the stops and
+  graphite only wastes muons.  21 of 42 surviving mu- range out inside
+  the D-T volume (median Bragg depth 81 cm; half stop within the first
+  ~0.8 m).
+
+**Chain budget (800 protons, QGSP_BERT):**
+
+| stage | per proton | energy cost |
+|---|---|---|
+| pi- + mu- escaping the ring | 0.270 | 11.5 GeV / pi- |
+| captured into the channel (42 %) | 0.113 | 27 GeV |
+| mu- at channel end (40 m) | 0.044 | 71 GeV |
+| **mu- stopped in the D-T target** | **0.026** | **118 GeV / stopped mu-** |
+
+(Invested energy = 3 GeV beam + ~0.10 GeV RF per proton.  Statistical
+errors ~20 %.)  For context: the muCF literature assumes ~5 GeV per muon
+*delivered*; this chain reaches 11.5 GeV per pi- *produced* - protons on
+Be at 3 GeV vs the literature's deuterons on W at 3.6 GeV explains most
+of the remaining production gap - and the pi- -> stopped-mu- conversion
+(10 %) is now the dominant loss.  The next levers are capture (bore,
+field, solid angle), channel length vs decay, and a momentum-graded
+absorber or bent-solenoid momentum selection in front of the D-T cell.
+
+Figures: `plots/3gev_ring_layout.png`, `plots/3gev_energy_recovery.png`,
+`plots/3gev_pion_yield.png`, `plots/stopping_dt.png` (Bragg stop profile
+and chain budget), and the updated `plots/energy_scan.png` with both ring
+working points.
+
+New pieces: `pion_decay_channel.g4bl` grew the STOP stage (degrader +
+D-T cell + `beamlossntuple` end-point recording); `scripts/analyze_stops.py`
+counts Bragg stops; `make_channel_input.py` places the channel mouth at
+the acceptance waist and zeroes the ring-exit timestamps (the channel has
+no RF, and stale times would trip its maxTime cut); `make_plots.py
+--preset 3gev` regenerates the figures for the scaled ring.
+
 ## Knobs to play with
 
 * `TGT` (mm): target thickness per pass. Thicker = fewer turns and more RF
