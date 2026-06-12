@@ -90,7 +90,7 @@ direction and local x radially outward.
 |---|---|
 | `ffa_ring.g4bl` | main deck: ring + internal target + RF + enclosure detectors |
 | `target_yield.g4bl` | standalone graphite target, π yield vs energy/thickness |
-| `pion_decay_channel.g4bl` | 3 T, 0.5 m bore, 30 m solenoid; π⁻ → μ⁻ |
+| `pion_decay_channel.g4bl` | 5 T, 0.5 m bore, 30 m solenoid; π⁻ → μ⁻ |
 | `ring_test.g4bl` | bare-ring single-particle tracking (orbit/tune studies) |
 | `probe_field.g4bl` | samples the assembled ring field (validation) |
 | `scripts/g4bl-docker.sh` | headless docker wrapper (also pins the Geant4 dataset path so the g4bldata GUI never launches) |
@@ -161,9 +161,9 @@ every π → μ front end — and this interface (`make_channel_input.py
   0.2025 MeV per MV/m of `GRAD` — rerun `scripts/tune_rf.py` after changing
   the target.
 * `KE0`: the same fixed-field ring accepts other injection energies; the
-  orbit moves radially as r ∝ p^(1/(k+1)) (≈ +250 mm at 1.2 GeV, the outer
-  chamber limits at ≈ 1.3 GeV). Pass matching `RCO/RSTR/TREV` from
-  `scripts/find_closed_orbit.py`.
+  orbit moves radially as r ∝ p^(1/(k+1)) (≈ +246 mm at 1.2 GeV, the outer
+  chamber limits at ≈ 1.3 GeV). Get matching `RCO/RSTR/TREV` from
+  `scripts/find_closed_orbit.py --p0 <MeV/c>`.
 * lattice: `--k`, `--bendF`, `--thF`, `--fringe` ... in the map generator;
   after regenerating, redo the closed-orbit finder and the RF calibration.
   (k sets the tunes: k = 4.3 gave Qx = 2.54/Qy = 0.88, too close to

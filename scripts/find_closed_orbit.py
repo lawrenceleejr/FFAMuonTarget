@@ -61,8 +61,8 @@ def orbit_samples(dat):
     return np.array(rs), np.array(ts), np.array(ys), phi, r, t
 
 
-def co_metric(X0):
-    dat = run_g4bl(X0)
+def co_metric(X0, p0):
+    dat = run_g4bl(X0, P0=p0)
     rs, ts, ys, phi, r, t = orbit_samples(dat)
     if len(rs) < 24:
         return 1e9, rs
@@ -72,13 +72,15 @@ def co_metric(X0):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--coarse", nargs=3, type=float, default=[8700, 9050, 50])
+    ap.add_argument("--p0", type=float, default=1696.04,
+                    help="proton momentum [MeV/c] (1696.04 = 1 GeV kinetic)")
     args = ap.parse_args()
 
     print("=== coarse scan ===")
     best = (1e9, None)
     lo, hi, st = args.coarse
     for X0 in np.arange(lo, hi + st / 2, st):
-        m, rs = co_metric(X0)
+        m, rs = co_metric(X0, args.p0)
         print(f"X0={X0:8.1f}   std(r@cells)={m:9.3f} mm   mean={np.mean(rs):9.2f}")
         if m < best[0]:
             best = (m, X0)
@@ -90,7 +92,7 @@ def main():
         xs = [X - step, X, X + step]
         ms = []
         for x0 in xs:
-            m, rs = co_metric(x0)
+            m, rs = co_metric(x0, args.p0)
             ms.append(m * m)
             print(f"X0={x0:9.2f}   std={math.sqrt(ms[-1]):8.4f} mm")
         # parabola vertex
@@ -106,7 +108,7 @@ def main():
     print(f"closed orbit launch radius X0 = {X:.2f} mm")
 
     # ---- final characterization run: 12 turns on the closed orbit ----
-    dat = run_g4bl(X, turns=12.2)
+    dat = run_g4bl(X, turns=12.2, P0=args.p0)
     rs, ts, ys, phi, r, t = orbit_samples(dat)
     n_turn = len(rs) // 12
     # revolution period from cell-crossing times (lstsq slope)
@@ -134,9 +136,9 @@ def main():
     print(f"r at straight centers = {np.mean(rstr):.2f} +- {np.std(rstr):.3f} mm")
 
     # ---- tunes: betatron oscillations about the closed orbit ----
-    datx = run_g4bl(X + 30.0, turns=16.2)
+    datx = run_g4bl(X + 30.0, turns=16.2, P0=args.p0)
     rsx, _, _, _, _, _ = orbit_samples(datx)
-    daty = run_g4bl(X, Y0=20.0, turns=16.2)
+    daty = run_g4bl(X, Y0=20.0, turns=16.2, P0=args.p0)
     _, _, ysy, _, _, _ = orbit_samples(daty)
 
     def tune_from(seq):

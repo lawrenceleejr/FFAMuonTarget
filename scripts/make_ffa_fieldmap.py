@@ -40,6 +40,7 @@ Output units: mm and Tesla (BLFieldMap grid format).
 
 import argparse
 import math
+import os
 import numpy as np
 
 
@@ -125,6 +126,9 @@ def main():
     nX, nY, nZ = len(xs), len(ys), len(zs)
     print(f"grid: nX={nX} nY={nY} nZ={nZ}  ({nX*nY*nZ} points)")
 
+    outdir = os.path.dirname(args.output)
+    if outdir:
+        os.makedirs(outdir, exist_ok=True)
     with open(args.output, "w") as f:
         f.write(f"# scaling-FFA cell map: N={N} R0={R0}mm k={k} pc={args.pc}MeV/c\n")
         f.write(f"# BF={BF:.5f}T BD=-{BD:.5f}T thF={thF_az}deg "
