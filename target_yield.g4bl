@@ -1,0 +1,53 @@
+# Standalone pion-production study: proton beam on a graphite target.
+#
+# Counts every particle leaving the target through a closed box of
+# virtual detector panels (one entry per particle, then killed), so the
+# analysis can extract pi-/pi+/mu-/neutron yields per proton and their
+# spectra as a function of beam energy and target thickness.
+#
+# Used by scripts/run_energy_scan.sh to scan the proton kinetic energy and
+# decide at what energy the FFA internal target should operate.
+#
+# Parameters (override on the command line):
+#   KE      proton kinetic energy [MeV]
+#   THICK   target thickness along the beam [mm]
+#           (20 mm ~ a "per pass" thin target; 450 mm ~ one interaction length)
+#   RADIUS  target radius [mm]
+#   NEV     number of protons
+#   SEED    random seed
+
+param -unset KE=1000.0
+param -unset THICK=20.0
+param -unset RADIUS=40.0
+param -unset NEV=2000
+param -unset SEED=1
+
+physics QGSP_BERT
+param worldMaterial=Vacuum
+param steppingFormat=N
+param eventTimeLimit=60
+randomseed set $SEED
+
+# momentum from kinetic energy
+param P0=sqrt($KE*($KE+2*938.272))
+
+# EM shower products and neutrinos are not interesting here
+trackcuts kill=gamma,e+,e-,nu_e,anti_nu_e,nu_mu,anti_nu_mu,pi0 maxTime=200
+
+beam gaussian particle=proton nEvents=$NEV beamX=0 beamY=0 beamZ=-200.0 \
+     meanMomentum=$P0 sigmaX=2.0 sigmaY=2.0 sigmaXp=0 sigmaYp=0 sigmaP=0
+
+tubs target outerRadius=$RADIUS length=$THICK material=G4_GRAPHITE color=0.3,0.3,0.3
+place target z=$THICK/2 coordinates=global
+
+# ---- closed detector box (half-size 800 mm), kill=1 -> count once ----
+# each placement writes its own BLTrackFile named <placement>.txt
+virtualdetector VDbox width=1604 height=1604 length=1 material=Vacuum \
+     format=ascii kill=1 coordinates=global
+
+place VDbox rename=VDfwd z=800  x=0 y=0 coordinates=global
+place VDbox rename=VDbwd z=-800 x=0 y=0 coordinates=global
+place VDbox rename=VDxp  x=801  z=0 rotation=Y90 coordinates=global
+place VDbox rename=VDxm  x=-801 z=0 rotation=Y90 coordinates=global
+place VDbox rename=VDyp  y=801  z=0 rotation=X90 coordinates=global
+place VDbox rename=VDym  y=-801 z=0 rotation=X90 coordinates=global

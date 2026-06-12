@@ -1,0 +1,23 @@
+# Probe the assembled FFA ring field (no tracking) - validation only.
+physics QGSP_BERT
+param worldMaterial=Vacuum
+param steppingFormat=N
+
+expandworld 10500,500,10500 -10500,-500,-10500
+
+fieldmap cellmap file=out/ffa_cell_map.txt
+
+do i 0 11
+  param ang=$i*30
+  place cellmap rename=cell$i x=0 y=0 z=0 rotation=Y$ang coordinates=global
+enddo
+
+# radial profile through cell 0 center (azimuth 0 = +x axis), midplane
+fieldntuple fradial format=ascii filename=out/probe_radial.txt x=8000,9800,50 y=0,0,1 z=0,0,1
+# same through cell 3 center (azimuth 90 = +z axis) - must match by symmetry
+fieldntuple fradial90 format=ascii filename=out/probe_radial90.txt x=0,0,1 y=0,0,1 z=8000,9800,50
+# azimuthal profile at r=9000 around one cell: sample along z at x=8862.7
+# (x=R0*cos(8.36deg)) ... instead sample the chord x=8900, z=-2400..2400
+fieldntuple fchord format=ascii filename=out/probe_chord.txt x=8900,8900,1 y=0,0,1 z=-2400,2400,25
+# off-midplane sample (vertical field components present off-axis)
+fieldntuple foffmid format=ascii filename=out/probe_offmid.txt x=8900,8900,1 y=40,40,1 z=-2400,2400,25 exit=1

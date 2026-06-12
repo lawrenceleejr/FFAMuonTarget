@@ -1,0 +1,152 @@
+# =====================================================================
+#  FFA internal-target pion source ("ERIT-style" energy-recovery ring)
+# =====================================================================
+#
+# A 1 GeV proton beam is injected onto the closed orbit of a 12-cell
+# radial-sector scaling FFA (DFD triplets, reverse-bending D).  A thin
+# graphite target sits in one of the lattice straights; every turn the
+# protons lose ~0.4 MeV/mm in it, and an RF cavity in the opposite
+# straight restores exactly that energy (synchronous phase on the rising
+# side of the wave, stable below transition: gamma_t = sqrt(k+1) = 2.14,
+# gamma = 2.07).  Protons therefore keep hitting the target at FULL
+# energy until they undergo a nuclear interaction - unlike a thick
+# stationary target, where most interactions happen after the beam has
+# degraded.  The pi- produced are not contained (wrong rigidity/charge)
+# and stream out of the ring, mostly through the outer chamber wall,
+# where virtual-detector bands record everything for the muon-yield
+# analysis.
+#
+# Lattice (built by scripts/make_ffa_fieldmap.py, k=3.6):
+#   12 cells, R0 = 9.000 m, cell = 30 deg
+#   F: +48 deg bend, 14 deg azimuthal width, B(r0) = +2.155 T
+#   D: -9 deg bend each, 3.5 deg width at 8..11.5 deg, B(r0) = -1.616 T
+#   1.1 m straight at every cell boundary (azimuth 15+30k deg)
+#   B ~ (r/9000mm)^3.6;  measured tunes Qx = 2.34, Qy = 1.22
+#   closed orbit @ 1 GeV: r = 8920.95 mm (F center), 8628.70 mm (straights)
+#   revolution period 212.352 ns (orbit length 55.71 m, beta = 0.875)
+#
+# Coordinates: the ring center is the GLOBAL ORIGIN, y is vertical, the
+# beam circulates counterclockwise in the x-z plane (from +x toward +z).
+# Element azimuth phi means position (r cos phi, 0, r sin phi) with local
+# z along the beam and local x radially outward (rotation="Y-phi").
+#
+# Main parameters (override on the command line):
+#   NEV    number of injected protons
+#   TGT    graphite target thickness along the beam [mm] (0 = no target)
+#   GRAD   RF peak gradient [MV/m] (0 = no RF); ~11.4 MV/m restores 5 mm at phis=30 deg
+#   PHID   synchronous phase [deg before the crest] (30 = default)
+#   HARM   RF harmonic number (86 -> 405 MHz)
+#   TMAX   tracking time limit [ns] (default 64 us ~ 300 turns)
+#   KE0    injection kinetic energy [MeV]
+#
+# Run:  scripts/g4bl-docker.sh ffa_ring.g4bl [param=value ...]
+# Then: python3 scripts/analyze_ring.py
+# ---------------------------------------------------------------------
+
+param -unset NEV=200
+param -unset SEED=1
+param -unset TGT=5.0
+param -unset GRAD=11.423
+param -unset PHID=29.33
+param -unset HARM=86
+param -unset TMAX=64000.0
+param -unset KE0=1000.0
+param -unset TRACE=0
+
+# ring constants (from scripts/find_closed_orbit.py for the k=3.6 map)
+param -unset RCO=8920.95
+param -unset RSTR=8628.70
+param -unset TREV=212.3519
+
+param P0=sqrt($KE0*($KE0+2*938.272))
+param FREQ=$HARM/$TREV
+# cavity timing: beam starts at azimuth 0 (t=0); the cavity sits at
+# azimuth 195 deg; Ez ~ cos(2pi*FREQ*(t-TOFF)), so the proton crosses at
+# phase -PHID (rising side of the crest, longitudinally stable below
+# transition) on every turn since FREQ is an exact harmonic of 1/TREV.
+param TOFF=$TREV*195/360+$PHID*$TREV/(360*$HARM)
+
+physics QGSP_BERT
+param worldMaterial=Vacuum
+param steppingFormat=N
+param eventTimeLimit=600
+param deltaChord=1.0 deltaOneStep=0.01 deltaIntersection=0.1
+param epsMin=1e-7 epsMax=1e-5
+param fieldVoxels=400,400,400
+randomseed Set $SEED
+
+expandworld 10500,800,10500 -10500,-800,-10500
+
+# ---------------- FFA ring field: 12 rotated cell maps ----------------
+fieldmap cellmap file=out/ffa_cell_map.txt
+do i 0 11
+  param ang=$i*30
+  place cellmap rename=cell$i x=0 y=0 z=0 rotation=Y$ang coordinates=global
+enddo
+
+# ---------------- internal graphite target (azimuth +15 deg) ----------
+# radial extent generous (300 mm) so the whole circulating beam, with its
+# scattering-driven orbit spread, keeps intersecting it; thickness TGT
+# along the beam sets the energy loss per turn (~0.39 MeV/mm).
+param TGTX=$RSTR*cos(15*3.14159265359/180)
+param TGTZ=$RSTR*sin(15*3.14159265359/180)
+if $TGT>0
+  box target width=300 height=100 length=$TGT material=GRAPHITE color=0.3,0.3,0.3
+  place target x=$TGTX y=0 z=$TGTZ rotation=Y-15 coordinates=global
+endif
+
+# ---------------- RF cavity (azimuth 195 deg) -------------------------
+# 405 MHz pillbox (TM010 radius 283 mm fits the chamber), all material
+# thicknesses zeroed: a pure field model so the circulating beam is only
+# disturbed by the target.  V_eff = GRAD * 0.3 m * (transit-time ~0.69).
+param CAVX=$RSTR*cos(195*3.14159265359/180)
+param CAVZ=$RSTR*sin(195*3.14159265359/180)
+if $GRAD>0
+  pillbox cavity maxGradient=$GRAD frequency=$FREQ innerLength=300 \
+      wallThick=0 pipeThick=0 collarThick=0 collarRadialThick=0 \
+      win1Thick=0 win2Thick=0 irisRadius=110 kill=0 \
+      timeOffset=$TOFF
+  place cavity x=$CAVX y=0 z=$CAVZ rotation=Y-195 coordinates=global
+endif
+
+# ---------------- detectors -------------------------------------------
+# turn counter: thin plane in the F magnet of cell 0, crossed once per turn
+virtualdetector VDturn width=1200 height=240 length=1 material=Vacuum \
+    format=ascii kill=0 coordinates=global file=out/VDturn.txt
+place VDturn x=$RCO y=0 z=300 coordinates=global
+
+# enclosure: outer + inner cylindrical bands (annular "washers" rotated
+# to stand vertically would overlap, so use thick annuli spanning +-300mm
+# vertically) and horizontal top/bottom rings; kill=1 -> each escaping
+# particle is recorded exactly once.  pi- leave mostly through VDouter.
+virtualdetector VDouter radius=9750 innerRadius=9650 length=600 \
+    material=Vacuum format=ascii kill=1 coordinates=global file=out/VDouter.txt
+place VDouter x=0 y=0 z=0 rotation=X90 coordinates=global
+
+virtualdetector VDinner radius=8250 innerRadius=8150 length=600 \
+    material=Vacuum format=ascii kill=1 coordinates=global file=out/VDinner.txt
+place VDinner x=0 y=0 z=0 rotation=X90 coordinates=global
+
+virtualdetector VDtop radius=9640 innerRadius=8260 length=2 \
+    material=Vacuum format=ascii kill=1 coordinates=global file=out/VDtop.txt
+place VDtop x=0 y=302 z=0 rotation=X90 coordinates=global
+virtualdetector VDbot radius=9640 innerRadius=8260 length=2 \
+    material=Vacuum format=ascii kill=1 coordinates=global file=out/VDbot.txt
+place VDbot x=0 y=-302 z=0 rotation=X90 coordinates=global
+
+# ---------------- tracking cuts ---------------------------------------
+# keep hadrons and muons; EM shower products and neutrinos are dropped;
+# very slow fragments (<10 MeV) would just spiral in vacuum forever
+trackcuts kill=gamma,e+,e-,nu_e,anti_nu_e,nu_mu,anti_nu_mu,pi0 \
+    kineticEnergyCut=10 maxTime=$TMAX
+
+# ---------------- 1 GeV proton injection ------------------------------
+# launched on the closed orbit at azimuth 0 (center of cell 0's F magnet,
+# a lattice mirror plane), moving in +z = tangentially
+beam gaussian particle=proton nEvents=$NEV beamX=$RCO beamY=0 beamZ=0 \
+     meanMomentum=$P0 sigmaX=3.0 sigmaY=3.0 sigmaXp=0.001 sigmaYp=0.001 \
+     sigmaP=1.7
+
+if $TRACE>0
+  trace nTrace=$TRACE oneNTuple=1 format=ascii filename=out/ring_trace.txt coordinates=global
+endif

@@ -1,0 +1,53 @@
+# Pion decay channel: turn the pi- extracted from the FFA ring into mu-.
+#
+# A simple solenoidal decay channel: uniform Bz solenoid field, iron
+# shield wall with a bore, virtual detectors along the channel and at the
+# end.  The input beam is the BLTrackFile written by
+# scripts/make_channel_input.py from the ring's enclosure detectors
+# (pi- and mu-, already transformed into the channel frame: the channel
+# axis is +z, entrance plane z=0).
+#
+# pi- at ~240 MeV/c have a decay length of ~13 m, so a 30 m channel
+# converts most of them; the 3 T, 0.5 m bore confines transverse momenta up to
+# ~220 MeV/c.  Note: pi- must NOT hit material (nuclear capture), which
+# is why the bore is generous.
+#
+# Parameters:
+#   BSOL    solenoid field [T]
+#   LCH     channel length [mm]
+#   RCH     bore radius [mm]
+#   INFILE  input BLTrackFile
+
+param -unset BSOL=3.0
+param -unset LCH=30000.0
+param -unset RCH=500.0
+param -unset INFILE=out/pions_for_channel.txt
+
+physics QGSP_BERT
+param worldMaterial=Vacuum
+param steppingFormat=N
+param eventTimeLimit=60
+
+trackcuts kill=gamma,e+,e-,nu_e,anti_nu_e,nu_mu,anti_nu_mu maxTime=2000
+
+beam ascii filename=$INFILE beamZ=0.0
+
+# uniform solenoid field over the bore (fieldexpr cylinder, constant Bz)
+fieldexpr solfield Bz=$BSOL length=$LCH radius=$RCH+100 nR=3 nZ=3
+place solfield z=$LCH/2 coordinates=global
+
+# channel wall: anything that touches it is lost (pi- capture)
+tubs chwall innerRadius=$RCH outerRadius=$RCH+20 length=$LCH material=Fe kill=1
+place chwall z=$LCH/2 coordinates=global
+
+# profile detectors along the channel + final muon counter
+do i 1 4
+  param zd=$i*5000
+  virtualdetector VDch$i radius=$RCH length=1 material=Vacuum format=ascii \
+      kill=0 coordinates=global file=out/VDch$i.txt
+  place VDch$i z=$zd coordinates=global
+enddo
+
+virtualdetector VDmuEnd radius=$RCH length=1 material=Vacuum format=ascii \
+    kill=1 coordinates=global file=out/VDmuEnd.txt
+place VDmuEnd z=$LCH coordinates=global

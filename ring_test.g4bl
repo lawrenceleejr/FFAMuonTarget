@@ -1,0 +1,43 @@
+# Single-particle tracking test of the bare FFA ring (no target, no RF).
+# Launches one proton at (X0, Y0, 0) moving in +z (tangentially, at the
+# center of cell 0's F magnet, which is a mirror-symmetry plane of the
+# lattice) and traces its global trajectory.
+#
+# Used by scripts/find_closed_orbit.py to locate the closed orbit, measure
+# the revolution period and the betatron tunes.
+#
+# Parameters (override on the command line):
+#   X0      launch radius [mm]
+#   Y0      vertical launch offset [mm]
+#   P0      launch momentum [MeV/c]
+#   TMAX    tracking time limit [ns]   (one turn is ~216 ns)
+
+param -unset X0=9000.0
+param -unset Y0=0.0
+param -unset P0=1696.04
+param -unset TMAX=1100
+
+physics QGSP_BERT
+param worldMaterial=Vacuum
+param steppingFormat=N
+param eventTimeLimit=600
+# accurate stepping in the field map (defaults are too loose for many turns)
+param deltaChord=1.0 deltaOneStep=0.01 deltaIntersection=0.1
+param epsMin=1e-7 epsMax=1e-5
+param fieldVoxels=400,400,400
+
+expandworld 10500,500,10500 -10500,-500,-10500
+
+# ---- the FFA ring: 12 rotated copies of the one-cell field map ----
+fieldmap cellmap file=out/ffa_cell_map.txt
+do i 0 11
+  param ang=$i*30
+  place cellmap rename=cell$i x=0 y=0 z=0 rotation=Y$ang coordinates=global
+enddo
+
+trackcuts keep=proton maxTime=$TMAX
+
+beam gaussian particle=proton nEvents=1 beamX=$X0 beamY=$Y0 beamZ=0.0 \
+     meanMomentum=$P0 sigmaX=0 sigmaY=0 sigmaXp=0 sigmaYp=0 sigmaP=0
+
+trace nTrace=1 oneNTuple=1 format=ascii filename=out/trace.txt coordinates=global
