@@ -7,6 +7,8 @@ cd "$(dirname "$0")/.."
 
 NJOBS=${1:-4}
 NEV=${2:-50}
+SEEDBASE=${SEEDBASE:-1000}
+JOBBASE=${JOBBASE:-0}
 shift 2 2>/dev/null || shift $# || true
 EXTRA="$@"
 
@@ -14,12 +16,12 @@ test -f out/ffa_cell_map.txt || python3 scripts/make_ffa_fieldmap.py --k 3.6 -o 
 
 pids=()
 for i in $(seq 1 $NJOBS); do
-  d=runs/job$i
+  d=runs/job$((JOBBASE+i))
   mkdir -p $d/out
   cp -f out/ffa_cell_map.txt $d/out/ffa_cell_map.txt
   rm -f $d/out/VD*.txt
   ( cd $d && ../../scripts/g4bl-docker.sh ../../ffa_ring.g4bl \
-        SEED=$((1000+i)) NEV=$NEV $EXTRA > g4bl.log 2>&1 ) &
+        SEED=$((SEEDBASE+i)) NEV=$NEV $EXTRA > g4bl.log 2>&1 ) &
   pids+=($!)
 done
 

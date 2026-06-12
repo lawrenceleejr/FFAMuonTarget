@@ -40,14 +40,16 @@ beam gaussian particle=proton nEvents=$NEV beamX=0 beamY=0 beamZ=-200.0 \
 tubs target outerRadius=$RADIUS length=$THICK material=G4_GRAPHITE color=0.3,0.3,0.3
 place target z=$THICK/2 coordinates=global
 
-# ---- closed detector box (half-size 800 mm), kill=1 -> count once ----
+# ---- closed detector box, kill=1 -> count each particle once ----
+# half-size scales with the target so thick targets stay inside the box;
 # each placement writes its own BLTrackFile named <placement>.txt
-virtualdetector VDbox width=1604 height=1604 length=1 material=Vacuum \
+param HALF=$THICK/2+800
+virtualdetector VDbox width=2*$HALF+4 height=2*$HALF+4 length=1 material=Vacuum \
      format=ascii kill=1 coordinates=global
 
-place VDbox rename=VDfwd z=800  x=0 y=0 coordinates=global
-place VDbox rename=VDbwd z=-800 x=0 y=0 coordinates=global
-place VDbox rename=VDxp  x=801  z=0 rotation=Y90 coordinates=global
-place VDbox rename=VDxm  x=-801 z=0 rotation=Y90 coordinates=global
-place VDbox rename=VDyp  y=801  z=0 rotation=X90 coordinates=global
-place VDbox rename=VDym  y=-801 z=0 rotation=X90 coordinates=global
+place VDbox rename=VDfwd z=$THICK/2+$HALF  x=0 y=0 coordinates=global
+place VDbox rename=VDbwd z=$THICK/2-$HALF  x=0 y=0 coordinates=global
+place VDbox rename=VDxp  x=$HALF+1  z=$THICK/2 rotation=Y90 coordinates=global
+place VDbox rename=VDxm  x=-$HALF-1 z=$THICK/2 rotation=Y90 coordinates=global
+place VDbox rename=VDyp  y=$HALF+1  z=$THICK/2 rotation=X90 coordinates=global
+place VDbox rename=VDym  y=-$HALF-1 z=$THICK/2 rotation=X90 coordinates=global

@@ -52,6 +52,17 @@ def main():
     inwin = sel[(phi >= args.window[0]) & (phi <= args.window[1])]
     print(f"in azimuth window {args.window} rel. to target: {len(inwin)} "
           f"({100.0*len(inwin)/max(len(sel),1):.0f}%)")
+
+    # a real channel must point AWAY from the ring: keep only tracks with
+    # outward radial momentum (inward-going pi- cross the ring interior
+    # and are lost by design)
+    if len(inwin):
+        ur = inwin[:, 0:3].copy()
+        ur[:, 1] = 0.0
+        ur /= np.linalg.norm(ur, axis=1)[:, None]
+        pr = np.sum(inwin[:, 3:6] * ur, axis=1)
+        inwin = inwin[pr > 0]
+    print(f"outward-going (radially): {len(inwin)}")
     if len(inwin) == 0:
         sys.exit("nothing to write")
 

@@ -8,8 +8,8 @@
 # axis is +z, entrance plane z=0).
 #
 # pi- at ~240 MeV/c have a decay length of ~13 m, so a 30 m channel
-# converts most of them; the 3 T, 0.5 m bore confines transverse momenta up to
-# ~220 MeV/c.  Note: pi- must NOT hit material (nuclear capture), which
+# converts most of them; the 5 T, 0.5 m bore confines transverse momenta up to
+# ~370 MeV/c.  Note: pi- must NOT hit material (nuclear capture), which
 # is why the bore is generous.
 #
 # Parameters:
@@ -18,7 +18,7 @@
 #   RCH     bore radius [mm]
 #   INFILE  input BLTrackFile
 
-param -unset BSOL=3.0
+param -unset BSOL=5.0
 param -unset LCH=30000.0
 param -unset RCH=500.0
 param -unset INFILE=out/pions_for_channel.txt
