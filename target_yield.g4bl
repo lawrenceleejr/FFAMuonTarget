@@ -22,6 +22,8 @@ param -unset RADIUS=40.0
 param -unset NEV=2000
 param -unset SEED=1
 param -unset MAT=G4_GRAPHITE
+param -unset PART=proton
+param -unset MASS=938.272
 
 physics QGSP_BERT
 param worldMaterial=Vacuum
@@ -29,13 +31,13 @@ param steppingFormat=N
 param eventTimeLimit=60
 randomseed set $SEED
 
-# momentum from kinetic energy
-param P0=sqrt($KE*($KE+2*938.272))
+# momentum from kinetic energy (KE = TOTAL kinetic energy of the projectile)
+param P0=sqrt($KE*($KE+2*$MASS))
 
 # EM shower products and neutrinos are not interesting here
 trackcuts kill=gamma,e+,e-,nu_e,anti_nu_e,nu_mu,anti_nu_mu,pi0 maxTime=200
 
-beam gaussian particle=proton nEvents=$NEV beamX=0 beamY=0 beamZ=-200.0 \
+beam gaussian particle=$PART nEvents=$NEV beamX=0 beamY=0 beamZ=-200.0 \
      meanMomentum=$P0 sigmaX=2.0 sigmaY=2.0 sigmaXp=0 sigmaYp=0 sigmaP=0
 
 tubs target outerRadius=$RADIUS length=$THICK material=$MAT color=0.3,0.3,0.3
